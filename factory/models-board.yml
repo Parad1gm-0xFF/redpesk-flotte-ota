@@ -1,0 +1,22 @@
+# Modèle de board redpesk factory (OTA).
+# Chaque champ correspond à un paramètre de la factory.
+# Le "device_type" affiché côté cible DOIT correspondre au champ device_type ici.
+# Documenté dans docs.redpesk.bzh : redpesk-factory/models-boards-management.
+
+model_board:
+  name: rpi3b-flotte
+  description: Flotte de capteurs Raspberry Pi 3B+ sous redpesk OS
+  # Device type Mender : c'est lui qui filtre les déploiements compatibles
+  device_type: rpi3b-flotte
+
+# Boards pré-autorisées (une ligne par carte).
+# MAC address = identifiant Mender (mender-init.sh configure device type + clé).
+# Peuvent être pré-créées ici AVANT le provisionnement physique, puis acceptées
+# à la première connexion (voir scripts/factory/provision.sh).
+boards:
+  - name: rpi3b-01
+    mac: "__MAC_A_CHANGER__"
+    notes: carte de démonstration 1
+  - name: rpi3b-02
+    mac: "__MAC_A_CHANGER__"
+    notes: carte de démonstration 2

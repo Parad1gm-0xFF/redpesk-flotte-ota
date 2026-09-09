@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+# Tests d'intégration redpesk (TAP) exécutés par la factory sur cible (QEMU
+# ou VM). Vérifie que le poste redpesk est OTA-ready : client Mender présent,
+# services actifs, identité device type conforme à la flotte.
+#
+# Sortie au format TAP (Test Anything Protocol), attendu par redpesk.
+set -uo pipefail
+
+# --- Préparation TAP ---
+TESTS=0
+FAILS=0
+plan() { echo "1..$1"; }
+ok()   { TESTS=$((TESTS+1)); echo "ok $TESTS - $1"; }
+bad()  { TESTS=$((TESTS+1)); FAILS=$((FAILS+1)); echo "not ok $TESTS - $1"; }
+
+EXPECTED_DEVICE_TYPE="${EXPECTED_DEVICE_TYPE:-rpi3b-flotte}"
+
+# --- 1. Client Mender installé ---
+if command -v mender-updated >/dev/null 2>&1 || command -v mender >/dev/null 2>&1; then
+    ok "client Mender présent"
+else
+    bad "client Mender absent"
+fi
+
+# --- 2. Services actifs ---
+for svc in mender-authd mender-connect; do
+    if systemctl --quiet is-active "$svc" 2>/dev/null; then
+        ok "service $svc actif"
+    else
+        bad "service $svc inactif"
+    fi
+done
+
+# --- 3. Device type conforme ---
+DT=$(cat /etc/mender/device_type 2>/dev/null)
+if [ "$DT" = "device_type=${EXPECTED_DEVICE_TYPE}" ]; then
+    ok "device type = ${EXPECTED_DEVICE_TYPE}"
+else
+    bad "device type inattendu : '${DT}' (attendu device_type=${EXPECTED_DEVICE_TYPE})"
+fi
+
+# --- 4. redpesk-config présent ---
+if rpm -q redpesk-config >/dev/null 2>&1; then
+    ok "redpesk-config installé"
+else
+    bad "redpesk-config absent (nécessaire pour pointer vers la factory)"
+fi
+
+plan "$TESTS"
+exit $((FAILS > 0))

@@ -1,0 +1,26 @@
+# --- Artefacts de build RPM / redpesk ---
+*.rpm
+dist/
+.rpmbuild/
+build/
+tmp/
+
+# --- Clés privées et secrets : JAMAIS commités ---
+# La clé privée mender de chaque board est générée / importée localement
+# (voir scripts/). Elle ne doit jamais apparaître dans git.
+*.pem
+*.key
+keys/
+secrets/
+
+# --- Config locale (URL de factory, tokens) ---
+.config.local
+.devices/
+
+# --- Outils téléchargés à la volée ---
+/tools/
+
+# --- Éditeurs / OS ---
+*.swp
+*~
+.DS_Store

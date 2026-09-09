@@ -1,0 +1,6 @@
+# Inventaire de la flotte (source de vérité pour les scripts).
+# Format : name,mac,notes
+# Les MAC sont prévues à blanc au démarrage ; remplir avant provision.sh
+name,mac,notes
+rpi3b-01,__MAC_A_CHANGER__,carte de démonstration 1
+rpi3b-02,__MAC_A_CHANGER__,carte de démonstration 2
