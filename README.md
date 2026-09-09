@@ -68,6 +68,8 @@ scripts/
     provision.sh          → Préparation d'une carte : flash, device type, config Mender
     check.sh              → Diagnostic sur cible : services, device type, part active
     rollback.sh           → Forcer le retour sur la partition précédente (A/B)
+  vm-fleet/
+    launch-vm.sh          → Démarre une board virtuelle (VM redpesk QEMU) de la flotte
 redtests/                 → Tests TAP exécutés par la factory sur cible
 spec/                     → Specfiles RPM (package de config + redtests)
 docs/                     → Notes de conception, référence des commandes rp-cli
@@ -156,6 +158,23 @@ reboot
 Le projet est industrialisé sur la **redpesk factory Community**
 (`community-app.redpesk.bzh`, compte gratuit), via `rp-cli`. Résultats à
 consolider au fil des builds (voir `docs/` et `redtests/`).
+
+---
+
+## 🌐 Note : WiFi RPi3B+ sous redpesk corn 3.0.
+
+Constat fait au 09/09/2026 : le **WiFi ne fonctionne pas** sur le RPi3B+ sous
+redpesk corn 3.0 (noyau 6.12) : `brcmfmac` charge mais `wlan0` reste DOWN
+(`NO-CARRIER`). La même carte + le même firmware fonctionnent sous Debian Trixie
+(noyau 6.18.  Le maillon défaillant est le **pilote `brcmfmac` monolithique du
+noyau 6.12** (Debian 6.18 utilise la version splitté bca/cyw/wcc).
+
+Conséquence pour ce projet :
+- la **carte redpesk** est utilisée en **Ethernet** (le WiFi n'est pas requis
+  pour la démo OTA Mender) ;
+- la **carte Debian** sert de connectivité maison (WiFi).
+
+Détails et sources : `docs/wifi-rpi3b-brcmfmac.md`.
 
 ---
 
