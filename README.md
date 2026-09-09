@@ -28,13 +28,13 @@ Kernel/BSP** (esprit candidature IoT.bzh, Lorient), aligné sur la plateforme
 ## 🏗 Architecture.
 
 ```
-┌─────────────────────────────┐      ┌─────────────────────────────────┐
-│  redpesk factory (.bzh)     │      │  Flotte cible (RPi3B+)           │
-│   ├── project + app RPM     │      │   ├── redpesk OS (image)         │
-│   ├── model board           │◄────►│   ├── mender-client (RPM)        │
+┌─────────────────────────────┐       ┌─────────────────────────────────┐
+│  redpesk factory (.bzh)     │       │  Flotte cible (RPi3B+)          │
+│   ├── project + app RPM     │       │   ├── redpesk OS (image)        │
+│   ├── model board           │◄────► │   ├── mender-client (RPM)       │
 │   ├── board (MAC + clé)     │ HTTPS │   ├── device type (Mender)      │
-│   └── release + deploy OTA  │      │   └── config redpesk-config      │
-└─────────────────────────────┘      └─────────────────────────────────┘
+│   └── release + deploy OTA  │       │   └── config redpesk-config     │
+└─────────────────────────────┘       └─────────────────────────────────┘
          │  rp-cli (poste dev)
          ▼
    scripts/factory/*.sh        scripts/target/*.sh (à exécuter sur carte)
