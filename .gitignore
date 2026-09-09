@@ -24,3 +24,9 @@ secrets/
 *.swp
 *~
 .DS_Store
+
+# --- Images disques QEMU / VM (lourdes, jamais commitées) ---
+*.img
+vm-fleet/Redpesk-OS.img
+vm-fleet/OVMF_VARS_*.fd
+*.raw
