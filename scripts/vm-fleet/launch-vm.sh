@@ -19,9 +19,15 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 source "${SCRIPT_DIR}/config/.env"
 
 INDEX="${1:?Usage: launch-vm.sh <index> [image.raw]}"
-IMG="${2:-${SCRIPT_DIR}/vm-fleet/Redpesk-OS.img}"
 
-[ -f "$IMG" ] || { echo "ERREUR : image $IMG absente (voir docs/simulate-fleet.md)." >&2; exit 1; }
+# L'image disque est VOLUMINEUSE (plusieurs Go) : elle vit HORS Nextcloud,
+# dans ~/vm-images/, pour ne pas saturer la synchro. On cherche là d'abord,
+# puis en fallback dans le dossier du repo (si quelqu'un la met dedans).
+IMG_DIR="${IMG_DIR:-${HOME}/vm-images}"
+IMG="${2:-}"
+[ -f "$IMG" ] || IMG="${IMG_DIR}/Redpesk-OS.img"
+[ -f "$IMG" ] || IMG="${SCRIPT_DIR}/vm-fleet/Redpesk-OS.img"
+[ -f "$IMG" ] || { echo "ERREUR : image $IMG absente (placer dans ~/vm-images/ ou vm-fleet/, voir docs/simulate-fleet.md)." >&2; exit 1; }
 command -v qemu-system-x86_64 >/dev/null || { echo "ERREUR : qemu-system-x86_64 absent." >&2; exit 1; }
 
 OVMF="/usr/share/OVMF/OVMF_CODE_4M.fd"
@@ -35,7 +41,8 @@ OVMF_VARS="/usr/share/OVMF/OVMF_VARS_4M.fd"
 [ -f "$OVMF_VARS" ] || { echo "ERREUR : OVMF_VARS introuvable." >&2; exit 1; }
 
 # Copie locale de VARS (QEMU ne doit pas écrire dans le fichier système)
-VARS_RW="${SCRIPT_DIR}/vm-fleet/OVMF_VARS_${INDEX}.fd"
+# Les VARS sont aussi stockées hors Nextcloud avec l'image.
+VARS_RW="${IMG_DIR}/OVMF_VARS_${INDEX}.fd"
 cp -f "$OVMF_VARS" "$VARS_RW"
 
 # Identité de la VM : une board par index de la flotte

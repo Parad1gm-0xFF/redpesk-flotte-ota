@@ -21,10 +21,15 @@ docs.redpesk.bzh, section "Booting a redpesk image with QEMU").
 Répertoire : `redpesk-lts/corn-3.0-update/images/smack/minimal/x86_64/generic/`
 
 ```
-mkdir -p vm-fleet && cd vm-fleet
+mkdir -p ~/vm-images && cd ~/vm-images
 # Télécharger image.raw.tar.xz + son sha256 (vérifier le hash !)
 # Extraire : Redpesk-OS.img
 ```
+
+> **Emplacement de l'image** : `~/vm-images/Redpesk-OS.img`
+> (HORS du workspace Nextcloud : l'image fait ~5 Go et saturerait la
+> synchro. `launch-vm.sh` la cherche automatiquement dans `~/vm-images/`
+> puis dans `vm-fleet/` en fallback. Elle n'est jamais commitée ni poussée.)
 
 Vérifier l'intégrité avec le `.sha256` fourni AVANT tout usage.
 
