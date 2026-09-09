@@ -24,9 +24,19 @@ IMG="${2:-${SCRIPT_DIR}/vm-fleet/Redpesk-OS.img}"
 [ -f "$IMG" ] || { echo "ERREUR : image $IMG absente (voir docs/simulate-fleet.md)." >&2; exit 1; }
 command -v qemu-system-x86_64 >/dev/null || { echo "ERREUR : qemu-system-x86_64 absent." >&2; exit 1; }
 
-OVMF="/usr/share/OVMF/OVMF_CODE.fd"
+OVMF="/usr/share/OVMF/OVMF_CODE_4M.fd"
+[ -f "$OVMF" ] || OVMF="/usr/share/OVMF/OVMF_CODE.fd"
 [ -f "$OVMF" ] || OVMF="/usr/share/qemu/OVMF.fd"
-[ -f "$OVMF" ] || { echo "ERREUR : OVMF introuvable (installer edk2-ovmf)." >&2; exit 1; }
+[ -f "$OVMF" ] || { echo "ERREUR : OVMF introuvable (installer edk2-ovmf ou ovmf)." >&2; exit 1; }
+
+OVMF_VARS="/usr/share/OVMF/OVMF_VARS_4M.fd"
+[ -f "$OVMF_VARS" ] || OVMF_VARS="/usr/share/OVMF/OVMF_VARS.fd"
+[ -f "$OVMF_VARS" ] || OVMF_VARS="/usr/share/qemu/OVMF_vars.fd"
+[ -f "$OVMF_VARS" ] || { echo "ERREUR : OVMF_VARS introuvable." >&2; exit 1; }
+
+# Copie locale de VARS (QEMU ne doit pas écrire dans le fichier système)
+VARS_RW="${SCRIPT_DIR}/vm-fleet/OVMF_VARS_${INDEX}.fd"
+cp -f "$OVMF_VARS" "$VARS_RW"
 
 # Identité de la VM : une board par index de la flotte
 PORT_SSH=$((3300 + INDEX))
@@ -41,14 +51,15 @@ echo "  Image  : ${IMG}"
 echo "  Ctrl-A X pour quitter la console"
 
 exec qemu-system-x86_64 \
-    -hda "$IMG" \
+    -drive file="$IMG",format=raw \
+    -drive if=pflash,format=raw,readonly=on,file="$OVMF" \
+    -drive if=pflash,format=raw,file="$VARS_RW" \
     -enable-kvm -m 2048 \
-    -cpu kvm64 \
+    -cpu Skylake-Client-v4 \
     -smp 4 \
-    -vga virtio \
+    -vga std \
     -device virtio-rng-pci \
     -serial mon:stdio \
     -serial null \
     -net nic,macaddr="$MAC" \
-    -net user,hostfwd=tcp::"$PORT_SSH"-:22 \
-    -bios "$OVMF"
+    -net user,hostfwd=tcp::"$PORT_SSH"-:22
