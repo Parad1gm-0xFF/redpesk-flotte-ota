@@ -32,9 +32,11 @@ echo "  device_type : ${DEVICE_TYPE}"
 echo "  MAC         : ${MAC}"
 
 # --- 3. Installer le client Mender + config factory ---
-# mender-connect est OPTIONNEL (peut être absent des repos) : on l'installe
-# seulement s'il existe, sans casser le reste.
-dnf install -y mender-redpesk
+# mender-client peut être absent des repos de l'image VM x86_64 (dépendance
+# non satisfaite) : on tente l'installation sans rendre le reste bloquant.
+# Sur l'OS RPi réel (aarch64), mender-redpesk s'installe normalement.
+dnf install -y mender-redpesk 2>/dev/null \
+    || echo "AVERTISSEMENT : mender-redpesk non installable (mender-client >= 5.0.0 absent des repos x86_64 VM)"
 dnf install -y mender-connect 2>/dev/null || echo "(mender-connect absent des repos : optionnel, ignoré)"
 FACTORY_URL="${FACTORY_URL:-https://community-app.redpesk.bzh}"
 dnf --nobest --nogpgcheck \
@@ -52,7 +54,15 @@ elif [ -z "$KEY_FILE" ] || [ ! -f "$KEY_FILE" ]; then
 fi
 
 # --- 5. Enregistrer l'identité Mender (device type + clé) ---
-eval "/usr/bin/mender-init.sh --force -d ${DEVICE_TYPE} ${KEY_ARG}"
+if [ -x /usr/bin/mender-init.sh ]; then
+    eval "/usr/bin/mender-init.sh --force -d ${DEVICE_TYPE} ${KEY_ARG}"
+else
+    echo "mender-init.sh absent (client Mender non installé) :"
+    echo "on pose uniquement le device type + clé (config manuelle)."
+    echo "device_type=${DEVICE_TYPE}" > /etc/mender/device_type
+    install -d /etc/mender
+    [ -n "${KEY_ARG}" ] && echo "clé privée stockée séparément (non appliquée sans client)."
+fi
 
 # --- 6. Activer les services ---
 systemctl enable --now mender-authd mender-updated mender-connect 2>/dev/null || true
