@@ -39,11 +39,13 @@ dnf install -y mender-redpesk 2>/dev/null \
     || echo "AVERTISSEMENT : mender-redpesk non installable (mender-client >= 5.0.0 absent des repos x86_64 VM)"
 dnf install -y mender-connect 2>/dev/null || echo "(mender-connect absent des repos : optionnel, ignoré)"
 FACTORY_URL="${FACTORY_URL:-https://community-app.redpesk.bzh}"
-dnf --nobest --nogpgcheck \
+dnf -y --nobest --nogpgcheck \
     --repofrompath "CONFIG,${FACTORY_URL}/download/redpesk/redpesk-config/" \
     --repo CONFIG swap redpesk-config redpesk-config
 
 # --- 4. Clé Mender : fournie ou générée localement ---
+# openssl peut manquer sur l'image minimale : l'installer pour générer la clé.
+command -v openssl >/dev/null || dnf install -y openssl 2>/dev/null || true
 if [ -n "$KEY_FILE" ] && [ -f "$KEY_FILE" ]; then
     KEY_ARG="-k \"$(cat "$KEY_FILE")\""
 elif [ -z "$KEY_FILE" ] || [ ! -f "$KEY_FILE" ]; then
