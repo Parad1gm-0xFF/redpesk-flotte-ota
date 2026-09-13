@@ -164,20 +164,37 @@ consolider au fil des builds (voir `docs/` et `redtests/`).
 
 ---
 
-## 🌐 Note : WiFi RPi3B+ sous redpesk corn 3.0.
+## 🧠 Zephyr dans redpesk (P5).
 
-Constat fait au 09/09/2026 : le **WiFi ne fonctionne pas** sur le RPi3B+ sous
-redpesk corn 3.0 (noyau 6.12) : `brcmfmac` charge mais `wlan0` reste DOWN
-(`NO-CARRIER`). La même carte + le même firmware fonctionnent sous Debian Trixie
-(noyau 6.18.  Le maillon défaillant est le **pilote `brcmfmac` monolithique du
-noyau 6.12** (Debian 6.18 utilise la version splitté bca/cyw/wcc).
+Preuve réussie : l'app `zephyr-hello-world` (sample Zephyr in-tree) est
+buildée dans la **factory redpesk** (cible `qemu_x86_64`, distribution
+`redpesk-zephyr-latest`, Zephyr 4.2.1) et s'exécute sous QEMU local :
 
-Conséquence pour ce projet :
-- la **carte redpesk** est utilisée en **Ethernet** (le WiFi n'est pas requis
-  pour la démo OTA Mender) ;
-- la **carte Debian** sert de connectivité maison (WiFi).
+```
+*** Booting Zephyr OS build 4.2.1 ***
+Hello World! qemu_x86_64/atom
+```
 
-Détails et sources : `docs/wifi-rpi3b-brcmfmac.md`.
+Procédure complète + correction de la commande QEMU de la doc redpesk :
+`docs/zephyr-qemu-demo.md`. Relance locale : `scripts/zephyr/test-local.sh`.
+
+---
+
+## 🌐 Note : WiFi RPi3B+ sur redpesk.
+
+Constat et résolution au 09/09/2026 :
+- Au départ, le WiFi **ne fonctionnait pas** sur le RPi3B+ sous redpesk corn 3.0
+  (noyau 6.12) : `brcmfmac` chargeait mais `wlan0` restait DOWN (`NO-CARRIER`).
+- **Résolu** : la radio scanne correctement ; le vrai blocage était la config
+  réseau (interface non attachée à `wpa_supplicant`) + le psk hashé mal
+  capturé. Depuis, le RPi3B+ se connecte en WiFi (wlan0 192.168.56.x) via
+  `wpa_supplicant` + `systemd-networkd`, et tient au reboot.
+
+Conséquence pour ce projet : la carte redpesk tourne en WiFi comme en Ethernet,
+le wifi n'est pas requis pour la démo OTA Mender (elle passe en Ethernet/VLAN).
+
+Détails du diagnostic (no txcap = log-noise, pas la cause) :
+`docs/wifi-rpi3b-brcmfmac.md`.
 
 ---
 
