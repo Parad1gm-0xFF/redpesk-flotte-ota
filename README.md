@@ -148,6 +148,9 @@ reboot
     exige un partitionnement A/B compatible Mender). Le vrai bout-en-bout passe
     par une **image custom buildée dans la factory** (ou l'activation du support
     Mender au build redpesk) : c'est la phase suivante du projet.
+  - **blocage packaging Mender** (constaté sur corn 3.0) : `mender-redpesk`
+    exige `mender-client >= 5.0.0` non fourni par les dépôts redpesk
+    (aarch64 et x86_64). Détail et piste de remontée : `docs/mender-packaging-corn3.md`.
   - les tests embarqués redpesk sur flotte restent soumis à la disponibilité de
     l'infrastructure Community (comme pour le projet initial).
 
