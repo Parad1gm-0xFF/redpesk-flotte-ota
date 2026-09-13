@@ -57,9 +57,38 @@ available/repoquery, tous repos activés (=y compris désactivés hors debug/sou
    si le `mender-redpesk` embarquait le client).
 2. **mender-connect** absent aussi des dépôts x86_64 (optionnel, mais
    mentionné dans la doc d'installation RPi).
-3. Question ouverte : sur quelles images redpesk le RPi3B+ OTA a-t-il été
+3. **Hypothèse forte (doc redpesk-factory/2_mender.html)** : la doc « Mender
+   integration » indique que le client Mender est « included in the image »
+   du local builder / de la factory. Le client `mender-client` est peut-être
+   fourni UNIQUEMENT dans les **images custom buildées** (distro de projet),
+   pas dans les **images publiques minimales** (`smack/minimal` uniquement sur
+   download.redpesk.bzh, aucune image Mender/OTA pré-intégrée n'est publiée).
+   Question ouverte : procédure attendue pour une carte déjà flashée en
+   corn 3.0 public (sans rebuild) ?
+4. Question ouverte : sur quelles images redpesk le RPi3B+ OTA a-t-il été
    validé ? Quelle version du client Mender ? Peut-être une version d'OS
    antérieure (arz 1.x) contient-elle `mender-client` ?
+
+## Recherche source complémentaire (09/09, après rédaction initiale)
+
+Vérification sur Internet AVANT envoi de l'email (aucune solution toute
+trouvée) :
+
+- **Mender officiel** : `mender-client` RPM n'est pas publié dans un repo dnf
+  public pour CentOS/Rocky (Mender fournit des paquets Debian
+  `packages.debian.org/sid/mender-client` et une intégration Yocto, pas de
+  repo RPM clé-en-main). Pas de correctif « installer tel repo ».
+- **Images redpesk téléchargeables** : toutes `smack/minimal` (une seule
+  flavor), aucune avec Mender/OTA pré-intégré. Les suffixes `-update` sont
+  des branches journalières, pas de l'OTA.
+- **GitHub / issues** : rien de spécifique à redpesk corn 3.0 résolu.
+- **Doc redpesk « Mender integration »** (`redpesk-factory/2_mender.html`) :
+  décrit un workflow alternatif vers `eu.hosted.mender.io` avec `mender setup`
+  et un client « included in the image » (buildée par localbuilder/factory).
+
+Conclusion : le blocage est réel sur les images publiques minimales ; la
+piste la plus probable est l'image custom buildée avec Mender intégré. À
+confirmer auprès d'IoT.bzh.
 
 ## Références
 
