@@ -1,9 +1,9 @@
-# 🚚 redpesk-flotte-ota.
+# 🚚 redpesk-ota-node.
 
-> Flotte de capteurs **Raspberry Pi 3B+** sous **redpesk OS**, provisionnée et
-> mise à jour **en bout-en-bout** via la **redpesk factory** et son **OTA Mender**
-> (A/B, rollback). Squelette de départ, fractionné du projet
-> `secure-telemetry-node`.
+> **Carte de référence unique (Raspberry Pi 3B+)** sous **redpesk OS**,
+> provisionnée et mise à jour **en bout-en-bout** via la **redpesk factory**
+> et son **OTA Mender** (A/B, rollback). Démos : provisionnement réel (1 carte),
+> Zephyr dans la factory, simulation VM (optionnelle).
 
 Projet de démonstration pour un poste d'**Ingénieur Linux Embarqué
 Kernel/BSP** (esprit candidature IoT.bzh, Lorient), aligné sur la plateforme
@@ -15,13 +15,14 @@ Kernel/BSP** (esprit candidature IoT.bzh, Lorient), aligné sur la plateforme
 
 | Mission / compétence | Preuve dans ce dépôt |
 |---|---|
-| **OTA SOTA** (Software Over The Air) | Dossier `factory/` + `target/` : déploiement Mender sur une flotte RPi3B+ |
-| **Gestion de flotte** redpesk factory | Scripts `rp-cli` : model board, boards, release, deploy |
-| **Provisionnement cible** | Script `target/provision.sh` : préparation d'une carte neuve (flash, SSH, device type) |
+| **Provisionnement réel (1 carte)** | `target/provision.sh` exécuté sur un RPi3B+ : `redpesk-config` factory, device type posé, WiFi opérationnel |
+| **OTA SOTA** (Software Over The Air) | Workflow Mender documenté : model board, board, deploy, rollback (finalisation OTA en attente de `mender-client`, voir `docs/mender-packaging-corn3.md`) |
+| **Gestion factory** | Scripts `rp-cli` : model board, boards, release, deploy |
 | Packaging **RPM** | Specfile installant la configuration Mender et les redtests |
+| **Zephyr dans la factory** | App `zephyr-hello-world` buildée (build 55090) + preuve QEMU locale (`docs/zephyr-qemu-demo.md`) |
 | **Tests** | `redtests/` : tests TAP sur cible (état OTA, services, device type) |
 | **Sécurité** | Clés privées jamais commitées, identité board = MAC + clé (modèle Mender), device type strict |
-| **Reproductibilité** | Dossier `config/` centralisé, un fichier par cible |
+| **Reproductibilité** | Dossier `config/` centralisé, un fichier par cible ; scripts relançables |
 
 ---
 
@@ -29,7 +30,7 @@ Kernel/BSP** (esprit candidature IoT.bzh, Lorient), aligné sur la plateforme
 
 ```
 ┌─────────────────────────────┐       ┌─────────────────────────────────┐
-│  redpesk factory (.bzh)     │       │  Flotte cible (RPi3B+)          │
+│  redpesk factory (.bzh)     │       │  Carte de référence (RPi3B+)    │
 │   ├── project + app RPM     │       │   ├── redpesk OS (image)        │
 │   ├── model board           │◄────► │   ├── mender-client (RPM)       │
 │   ├── board (MAC + clé)     │ HTTPS │   ├── device type (Mender)      │
@@ -38,17 +39,20 @@ Kernel/BSP** (esprit candidature IoT.bzh, Lorient), aligné sur la plateforme
          │  rp-cli (poste dev)
          ▼
    scripts/factory/*.sh        scripts/target/*.sh (à exécuter sur carte)
+   scripts/zephyr/*.sh         scripts/vm-fleet/*.sh (optionnel, sans Mender)
 ```
 
 - **Côté factory** : un projet redpesk contient l'application (le RPM de config)
   et l'image OS. Le model board définit le `device type` Mender, les boards sont
-  les cartes physiques identifiées par **MAC** (et pré-autorisées).
-- **Côté cible** : l'image redpesk OS embarque `mender-redpesk` + `mender-connect`
-  (client OTA). Le provisionnement installe `redpesk-config` pointant vers la
-  factory, définit le `device type`, et enregistre la clé privée de la board.
-- **Déploiement** : un `release` du projet est déployé sur le model board depuis
-  la factory ; Mender pousse l'update **A/B** sur les cartes, avec **rollback**
-  automatique si le boot de la nouvelle partition échoue.
+  les cartes identifiées par **MAC** (et pré-autorisées).
+- **Côté cible (1 carte)** : `target/provision.sh` active `redpesk-config`
+  (pointe vers la factory), installe `mender-redpesk` si dispo, pose le
+  `device type`. Le client Mender complet (`mender-client`) est actuellement
+  indisponible sur les images publiques corn 3.x : l'OTA bout-en-bout sera
+  finalisé dès que ce paquet sera fourni (remontée faite, doc dédiée).
+- **Déploiement (workflow prévu)** : un `release` est déployé sur le model
+  board depuis la factory ; Mender pousse l'update **A/B** avec **rollback**
+  automatique si le boot échoue.
 
 ---
 
@@ -60,16 +64,19 @@ factory/
   models-board.json       → Modèle de board (device type) pour la factory
   boards.csv              → Inventaire de la flotte (nom, MAC, notes)
 scripts/
-  factory/
-    provision.sh          → Création model board + boards dans la factory (rp-cli)
-    deploy.sh             → Release + déploiement OTA sur la flotte
-    status.sh             → État des boards / déploiements (rp-cli)
   target/
-    provision.sh          → Préparation d'une carte : flash, device type, config Mender
+    provision.sh          → Provisionne LA carte : config factory + device type
     check.sh              → Diagnostic sur cible : services, device type, part active
     rollback.sh           → Forcer le retour sur la partition précédente (A/B)
-  vm-fleet/
-    launch-vm.sh          → Démarre une board virtuelle (VM redpesk QEMU) de la flotte
+  factory/
+    provision.sh          → Déclare le model board + boards dans la factory (rp-cli)
+    deploy.sh             → Release + déploiement OTA (workflow prévu)
+    status.sh             → État des boards / déploiements (rp-cli)
+  zephyr/
+    test-local.sh         → Relance de la preuve Zephyr sous QEMU
+  vm-fleet/               → OPTIONNEL : simulation de cartes QEMU (sans Mender)
+    launch-vm.sh          → Démarre une VM redpesk
+    provision-vm.sh       → Provisionnement d'une VM (partiel, sans mender-client)
 redtests/                 → Tests TAP exécutés par la factory sur cible
 spec/                     → Specfiles RPM (package de config + redtests)
 docs/                     → Notes de conception, référence des commandes rp-cli
@@ -77,61 +84,58 @@ docs/                     → Notes de conception, référence des commandes rp-
 
 ---
 
-## ✅ Démonstration (bout-en-bout).
+## ✅ Démonstration (état au 13/09/2026).
 
-### 1. Prérequis (poste de dev).
+### 1. Carte de référence provisionnée (exécuté).
 
 ```bash
-# rp-cli configuré (voir docs/redpesk-cli.md) :
-rp-cli onboard
-
-# Une clé mender par board sera générée au provisionnement, jamais commitée.
+# Sur le RPi3B+ (redpesk corn 3.0, access SSH root) :
+./scripts/target/provision.sh rpi3b-flotte
 ```
 
-### 2. Déclarer la flotte dans la factory.
+Résultat réel (RPi3B+, WiFi 192.168.56.x) :
+- `redpesk-config` 1.5.1-5.community (config factory Community active)
+- `device_type=rpi3b-flotte` posé (`/etc/mender/device_type` et `/var/lib/mender/device_type`)
+- WiFi opérationnel (wpa_supplicant + networkd) : la carte est joignable par SSH sans câble
+
+### 2. Déclarer le device dans la factory.
 
 ```bash
 cp config/.env.example config/.env   # renseigner FACTORY_URL, USER, …
-./scripts/factory/provision.sh       # crée model board + boards (via rp-cli)
+./scripts/factory/provision.sh       # crée model board + board (MAC du RPi)
 ./scripts/factory/status.sh          # vérifie l'état
 ```
 
-### 3. Provisionner une carte RPi3B+.
+### 3. OTA (workflow prévu, en attente de `mender-client`).
 
 ```bash
-sudo ./scripts/target/provision.sh /dev/sdX     # flash image redpesk OS + config
-ssh root@<ip>                                   # première connexion
-```
-
-Le script configure : `redpesk-config` (pointe vers la factory), le device type
-(`rpi3b-flotte`), la clé privée Mender, et active `mender-authd` + `mender-updated`.
-
-### 4. Vérifier que la carte est enregistrée.
-
-```bash
-./scripts/factory/status.sh                     # la board doit passer "pré-autorisée → acceptée"
-```
-
-### 5. Déployer une mise à jour OTA.
-
-```bash
-./scripts/factory/deploy.sh "<message de release>"   # build, release, deploy sur le model board
-```
-
-Sur la carte :
-
-```bash
+./scripts/factory/deploy.sh "<message de release>"   # release + deploy sur le model board
+# sur la carte :
 journalctl -u mender-updated -f                     # progression de l'update
 sudo reboot                                         # boot sur la nouvelle partition
 ./scripts/target/check.sh                           # part active + device type OK
 ```
 
-### 6. Rollback (partition A/B).
+> **État actuel** : l'install de `mender-redpesk` est bloquée par la dépendance
+> `mender-client >= 5.0.0` absente des dépôts redpesk publics (corn 3.0 et
+> 3.1, aarch64 et x86_64). La finalisation de l'OTA sur la carte de référence
+> attend la réponse de redpesk (email envoyé le 09/09, doc : `docs/mender-packaging-corn3.md`).
 
-```bash
-./scripts/target/rollback.sh                        # force le retour sur la partition précédente
-reboot
+---
+
+## 🖥 Simulation VM QEMU (optionnel, sans Mender).
+
+Pour tester les scripts de provisionnement sans matériel supplémentaire, on
+peut lancer une VM redpesk QEMU. **Limite à connaître** : les VMs sur ces
+images ne peuvent PAS faire l'OTA Mender (même problème `mender-client`),
+elles servent au test de l'outillage, pas à la démonstration finale.
+
 ```
+./scripts/vm-fleet/launch-vm.sh 1      # VM #1, SSH port 3301
+./scripts/vm-fleet/provision-vm.sh 1   # provisionnement partiel
+```
+
+Détails : `docs/simulate-fleet.md`.
 
 ---
 
@@ -147,12 +151,11 @@ reboot
   - l'image redpesk OS *pré-construite* ne gère pas l'OTA A/B d'origine (elle
     exige un partitionnement A/B compatible Mender). Le vrai bout-en-bout passe
     par une **image custom buildée dans la factory** (ou l'activation du support
-    Mender au build redpesk) : c'est la phase suivante du projet.
-  - **blocage packaging Mender** (constaté sur corn 3.0) : `mender-redpesk`
-    exige `mender-client >= 5.0.0` non fourni par les dépôts redpesk
-    (aarch64 et x86_64). Détail et piste de remontée : `docs/mender-packaging-corn3.md`.
-  - les tests embarqués redpesk sur flotte restent soumis à la disponibilité de
-    l'infrastructure Community (comme pour le projet initial).
+    Mender au build redpesk).
+  - **blocage packaging Mender** : `mender-redpesk` exige `mender-client >= 5.0.0`
+    non fourni par les dépôts redpesk publics. Vérifié sur corn 3.0 et corn 3.1,
+    en aarch64 et x86_64, tous repos activés/désactivés. Détail et remontée :
+    `docs/mender-packaging-corn3.md` (envoyé à redpesk le 09/09).
 
 ---
 
