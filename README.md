@@ -152,10 +152,12 @@ Détails : `docs/simulate-fleet.md`.
     exige un partitionnement A/B compatible Mender). Le vrai bout-en-bout passe
     par une **image custom buildée dans la factory** (ou l'activation du support
     Mender au build redpesk).
-  - **blocage packaging Mender** : `mender-redpesk` exige `mender-client >= 5.0.0`
-    non fourni par les dépôts redpesk publics. Vérifié sur corn 3.0 et corn 3.1,
-    en aarch64 et x86_64, tous repos activés/désactivés. Détail et remontée :
-    `docs/mender-packaging-corn3.md` (envoyé à redpesk le 09/09).
+  - **Mender** : le client s'installe via le repo **`redpesk-third-party`**
+    (`echo 1 > /etc/dnf/vars/redpesk_third_party`) : `mender-client 5.0.3`,
+    `mender-connect`, `mender-redpesk`. Le client atteint le serveur
+    `community-mender.redpesk.bzh` ; reste à résoudre l'autorisation du device
+    (`dev auth: unauthorized` malgré board préautorisée). Détail :
+    `docs/mender-packaging-corn3.md`.
 
 ---
 
