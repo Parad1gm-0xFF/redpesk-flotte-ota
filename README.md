@@ -16,7 +16,7 @@ Kernel/BSP** (esprit candidature IoT.bzh, Lorient), aligné sur la plateforme
 | Mission / compétence | Preuve dans ce dépôt |
 |---|---|
 | **Provisionnement réel (1 carte)** | `target/provision.sh` exécuté sur un RPi3B+ : `redpesk-config` factory, device type posé, WiFi opérationnel |
-| **OTA SOTA** (Software Over The Air) | Workflow Mender documenté : model board, board, deploy, rollback (finalisation OTA en attente de `mender-client`, voir `docs/mender-packaging-corn3.md`) |
+| **OTA SOTA** (Software Over The Air) | Workflow Mender : model board, board, deploy (factory), + artefact local standalone (`docs/artefact-local.md`) |
 | **Gestion factory** | Scripts `rp-cli` : model board, boards, release, deploy |
 | Packaging **RPM** | Specfile installant la configuration Mender et les redtests |
 | **Zephyr dans la factory** | App `zephyr-hello-world` buildée (build 55090) + preuve QEMU locale (`docs/zephyr-qemu-demo.md`) |
@@ -46,13 +46,13 @@ Kernel/BSP** (esprit candidature IoT.bzh, Lorient), aligné sur la plateforme
   et l'image OS. Le model board définit le `device type` Mender, les boards sont
   les cartes identifiées par **MAC** (et pré-autorisées).
 - **Côté cible (1 carte)** : `target/provision.sh` active `redpesk-config`
-  (pointe vers la factory), installe `mender-redpesk` si dispo, pose le
-  `device type`. Le client Mender complet (`mender-client`) est actuellement
-  indisponible sur les images publiques corn 3.x : l'OTA bout-en-bout sera
-  finalisé dès que ce paquet sera fourni (remontée faite, doc dédiée).
-- **Déploiement (workflow prévu)** : un `release` est déployé sur le model
-  board depuis la factory ; Mender pousse l'update **A/B** avec **rollback**
-  automatique si le boot échoue.
+  (pointe vers la factory), installe `mender-redpesk` via le repo
+  **`redpesk-third-party`** (`echo 1 > /etc/dnf/vars/redpesk_third_party`),
+  pose le `device_type`. Le device s'authentifie auprès du serveur Mender de la
+  factory (`community-mender.redpesk.bzh`), soumet son inventaire et poll.
+- **Déploiement** : un `release` du projet est déployé sur le model board
+  (`rp-cli project-releases deploy <release> --boards <id> -a aarch64 --rpms <pkg>`).
+  Mender pousse l'update (A/B + rollback pour l'OS ; installation RPM pour les apps).
 
 ---
 
@@ -106,20 +106,21 @@ cp config/.env.example config/.env   # renseigner FACTORY_URL, USER, …
 ./scripts/factory/status.sh          # vérifie l'état
 ```
 
-### 3. OTA (workflow prévu, en attente de `mender-client`).
+### 3. OTA (déploiement via la factory).
 
 ```bash
-./scripts/factory/deploy.sh "<message de release>"   # release + deploy sur le model board
+# release + déploiement sur le model board (--rpms requis) :
+rp-cli project-releases deploy <release-id> --boards <board-id> -a aarch64 --rpms <pkg>
 # sur la carte :
 journalctl -u mender-updated -f                     # progression de l'update
-sudo reboot                                         # boot sur la nouvelle partition
+sudo reboot                                         # OS : boot sur la nouvelle partition
 ./scripts/target/check.sh                           # part active + device type OK
 ```
 
-> **État actuel** : l'install de `mender-redpesk` est bloquée par la dépendance
-> `mender-client >= 5.0.0` absente des dépôts redpesk publics (corn 3.0 et
-> 3.1, aarch64 et x86_64). La finalisation de l'OTA sur la carte de référence
-> attend la réponse de redpesk (email envoyé le 09/09, doc : `docs/mender-packaging-corn3.md`).
+> **État actuel** : le device est authentifié auprès de `community-mender.redpesk.bzh`
+> et poll. Le déploiement factory fonctionne (`--rpms` requis). Voir
+> `docs/mender-packaging-corn3.md` et, pour l'OTA locale (standalone),
+> `docs/artefact-local.md`.
 
 ---
 

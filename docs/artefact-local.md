@@ -1,12 +1,16 @@
-# OTA locale : créer/déployer un artefact Mender sans la factory.
+# OTA locale : créer/déployer un artefact Mender indépendamment de la factory.
 
-Objectif : contourner le bug de la factory (`POST /deployments`,
-`create_artifact` → `AttributeError: datetime.time has no attribute 'sleep'`)
-en créant et déployant un artefact Mender **localement**.
+Objectif : savoir créer et déployer un artefact Mender **localement**, sans
+dépendre de la factory (utile pour tester l'OTA, le mode standalone, ou
+contourner une indisponibilité de la factory).
 
 **Statut : validé (16/09/2026)** sur le RPi3B+ (device type
 `rpi3b-flotte_91c8e506`) : artefact créé hors factory, installé en mode
 standalone, commité.
+
+> Note : le déploiement **via la factory** fonctionne aussi ; voir
+> `docs/mender-packaging-corn3.md` (`rp-cli project-releases deploy ... --rpms`);
+> l'option `--rpms` est requise.
 
 ## Outillage (sans sudo)
 
@@ -94,8 +98,7 @@ mender-cli artifacts upload ota-demo-1.0.mender
 ```
 
 Réserve : nécessite des **identifiants** sur ce serveur Mender (à confirmer
-côté redpesk). C'est une alternative au déploiement factory (actuellement
-cassé).
+côté redpesk). C'est une alternative au déploiement via la factory.
 
 ## Pour de vrais paquets RPM (redpesk-payload) — VALIDÉ
 
@@ -164,7 +167,7 @@ mender-cli artifacts upload ota-demo-1.0.mender
 `community-app.redpesk.bzh` ne donne pas forcément accès à l'API Mender).
 
 Si obtenus, cette voie permettrait un déploiement **managed** de bout en bout
-sans l'endpoint factory cassé.
+sans passer par la factory.
 
 ## Reproduire
 

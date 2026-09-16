@@ -65,30 +65,49 @@ mender-updated: No update available
 → **Le RPi3B+ est authentifié auprès du serveur Mender de la factory** et
 soumet son inventaire. La chaîne OTA est opérationnelle côté client.
 
+## Déploiement factory : RÉSOLU (erreur d'usage, pas un bug)
+
+> Correction d'une conclusion antérieure erronée. Un premier essai de
+> déploiement avait produit une erreur serveur que j'avais qualifiée de « bug
+> plateforme ». En relisant la procédure, la cause était une **option
+> manquante** de ma part.
+
+`rp-cli project-releases deploy` **requiert de préciser les RPMs** via `--rpms`
+(sinon la création d'artefact échoue côté factory). Commande correcte :
+
+```
+rp-cli project-releases deploy <release-id> --boards <board-id> -a aarch64 \
+    --rpms <package-name>
+```
+
+Résultat observé (aucune erreur) :
+
+```
+-- Released project deployment requested by user --
+Requesting the factory to deploy the project "secure-telemetry-node-1-1.0.0"...	[OK]
+```
+
+Le déploiement est accepté par la factory. Le device (authentifié) récupérera
+l'artefact à son prochain cycle de poll.
+
+Notes :
+- La doc OTA (`models-boards-management`) ne documente pas la commande de
+  déploiement CLI ; `--rpms` vient de l'arbre des commandes
+  (`rp-cli project-releases deploy --help`).
+- `rp-cli deployments list` peut renvoyer « invalid endpoint or API call »
+  (endpoint de listing indisponible sur le Community) ; cela n'empêche pas le
+  déploiement.
+- La doc « Project releasing » rappelle que les paquets d'un projet releasé
+  sont **signés par la factory**, et qu'il faut activer `gpgcheck` sur la
+  board (`dnf config-manager --setopt=<repoid>.gpgcheck=1 --save`) pour que
+  dnf vérifie ces signatures.
+
 ## Reste à faire pour un déploiement complet
 
 1. `jq` manquant sur l'image (l'inventaire `repos-info` échoue, non bloquant) :
    `dnf install jq` (a échoué en GPG check un jour donné, à revoir).
-2. **BUG PLATEFORME (bloquant)** : le déploiement échoue côté serveur factory.
-
-### Bug redpesk : POST /deployments (create_artifact)
-
-Reproductible via `rp-cli project-releases deploy <release> --boards <board> -a aarch64` :
-
-```
-Error: oops, something went wrong - {"errors":
- "type object 'datetime.time' has no attribute 'sleep'",
- "traceback": [ ... redpesk_service_ota/mender/artifact.py", line 252,
-                in create_artifact:  time.sleep(0.5) ]}
-```
-
-Cause : dans `redpesk_service_ota/mender/artifact.py`, `time` a été importé
-comme `datetime.time` (classe) au lieu du module `time`, donc `time.sleep()`
-n'existe pas. Bug **serveur** (factory), indépendant du device.
-
-Conséquence : l'artefact OTA ne peut pas être créé/déployé par la factory tant
-que ce point n'est pas corrigé côté redpesk. Le device, lui, est authentifié et
-prêt (il poll, prêt à installer un artefact).
+2. Attendre le poll du device (30 min) ou le forcer, puis vérifier l'update.
+3. Activer `gpgcheck` sur la board pour vérifier les signatures factory.
 
 ## Analyse : changer de release OS ne débloque pas l'OTA
 
@@ -105,24 +124,22 @@ factory (`redpesk-factory/factory-releases`) :
   (local builder).
 
 Conséquences :
-- Le bug `create_artifact` que nous rencontrons est **côté service factory**
-  (SaaS 1.11.1), donc **indépendant de l'OS du device**. Revenir à Batz 2.x ou
-  Arz n'aurait aucun effet sur ce bug.
+- L'OTA est pilotée par la factory (SaaS), indépendamment de l'OS du device.
+  Les releases OS (Arz/Batz/Corn) n'entrent pas en jeu pour le déploiement.
 - Le **GPG check activé par défaut** (1.10.0) explique l'échec `dnf install jq`
   (paquets third-party non signés par la clé attendue).
 - ROADMAP OS : Arz (RHEL8) → Batz (RHEL9, supporté jusqu'en 2029) → Corn (RHEL10).
 
-## Voie alternative : artefact local (make-mender-artifact)
+## Voie alternative : artefact local (mender-artifact)
 
-La doc `redpesk-factory/2_mender.html` décrit un chemin **sans l'endpoint cassé** :
-le **local builder** fournit `make-mender-artifact` et `upload-mender-artifact`
-pour créer/pousser un artefact directement. Réserve : ce flux est documenté
-autour de **Hosted Mender** (`eu.hosted.mender.io`), alors que notre device est
-inscrit sur `community-mender.redpesk.bzh`.
+Deux approches complémentaires :
 
-Piste : utiliser l'outil **officiel Mender** `mender-artifact` (binaire Go) pour
-créer un artefact depuis nos RPM, puis le déployer via l'UI/API du serveur
-Mender de la factory. Voir `docs/artefact-local.md` (exploration).
+1. **Local builder redpesk** (doc `redpesk-factory/2_mender.html`) :
+   `make-mender-artifact` / `upload-mender-artifact`, autour de **Hosted Mender**
+   (`eu.hosted.mender.io`).
+2. **Outil officiel `mender-artifact`** (image Docker `mender-ci-tools`) : créer
+   un artefact localement et le déployer en standalone (validé, voir
+   `docs/artefact-local.md`).
 
 ## Note opérationnelle : horloge
 

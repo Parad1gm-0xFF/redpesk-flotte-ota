@@ -1,49 +1,42 @@
-# État du projet : finalité « une seule carte » (13/09/2026).
+# État du projet : carte de référence unique (mis à jour 16/09/2026).
 
 ## Décision
 
-Le projet est finalisé sur le périmètre d'**une carte de référence unique**
-(RPi3B+ réel), plutôt que sur une « flotte ». Justification :
+Le projet est centré sur **une carte de référence unique** (RPi3B+ réel),
+plutôt que sur une « flotte » :
 
-- Les simulations VM QEMU **ne peuvent pas faire l'OTA Mender** (`mender-client`
-  absent des dépôts redpesk publics) : multiplier les VMs ne démontrerait
-  jamais l'OTA et n'apportait rien à la finalité.
-- Mender gère un seul device exactement comme une flotte : enregistrement,
-  device type, inventaire, déploiement, rollback. Une carte suffit pour une
-  démonstration honnête.
+- Mender gère un seul device exactement comme une flotte (enregistrement,
+  device type, inventaire, déploiement, rollback) : une carte suffit.
 - Tout l'outillage est réellement exécuté sur **une** carte physique.
 
 ## Réalisé (exécuté réellement)
 
-| Élement | État |
+| Élément | État |
 |---|---|
-| RPi3B+ sous redpesk corn 3.0 | ✅ boots, WiFi opérationnel (wlan0, tient au reboot) |
+| RPi3B+ sous redpesk corn 3.0 | ✅ boots, WiFi opérationnel (tient au reboot) |
 | `redpesk-config` -> factory Community (1.5.1-5.community) | ✅ installé |
-| Device type `rpi3b-flotte` | ✅ posé (`/etc/mender/device_type` + `/var/lib/mender/device_type`) |
-| `target/provision.sh` | ✅ exécuté sur la carte (non-bloquant) |
-| Application Zephyr dans la factory | ✅ build 55090 + preuve QEMU (Zephyr 4.2.1, Hello World qemu_x86_64) |
-| Scripts factory (`provision.sh`, `status.sh`, `deploy.sh`) | ✅ rédigés, prêts (déclaration board = MAC du RPi) |
+| Client Mender (`mender-client 5.0.3`, `mender-connect`, `mender-redpesk`) | ✅ via repo `redpesk-third-party` (`echo 1 > /etc/dnf/vars/redpesk_third_party`) |
+| Services Mender (`mender-authd`, `mender-updated`, `mender-connect`) | ✅ actifs |
+| **Authentification device auprès de la factory** | ✅ (« Successfully received new authorization data », inventaire soumis, poll actif) |
+| Device type | ✅ `<model_name>_<model_id>` = `rpi3b-flotte_91c8e506` (valeur attendue par la factory) |
+| **Déploiement factory** (`rp-cli project-releases deploy ... --rpms`) | ✅ accepté par la factory |
+| **OTA local (standalone)** | ✅ artefact `single-file` ET `redpesk-payload` (RPM signé) installés/committés (`docs/artefact-local.md`) |
+| Application Zephyr dans la factory | ✅ build 55090 + preuve QEMU (Zephyr 4.2.1) |
 
-## Non réalisé (blocage externe externe documenté)
+## Points restants (non bloquants)
 
-| Élement | État | Bloquant |
-|---|---|---|
-| Install `mender-redpesk` sur la carte | ❌ | `mender-client >= 5.0.0` absent des dépôts redpesk publics (corn 3.0 + 3.1, aarch64 + x86_64) |
-| Enregistrement Mender + déploiement OTA effectif | ❌ | dépend du point précédent |
+- `jq` manquant sur l'image (inventaire `repos-info`, non bloquant).
+- Activer `gpgcheck` sur la board pour vérifier les signatures factory.
+- Déploiement **managed** via `mender-cli` : nécessite des identifiants sur
+  `community-mender.redpesk.bzh` (serveur joignable, API présente).
 
-Remontée faite le 09/09 à `support@redpesk.bzh` (+ cc Fulup). Détail :
-`docs/mender-packaging-corn3.md`.
+## Leçon / correction
 
-## Ce qui finalisera le projet (quand redpesk répondra)
-
-1. Installer `mender-redpesk`/`mender-client` sur la carte (si paquet fourni),
-2. Déclarer la board (MAC) dans la factory (`scripts/factory/provision.sh`),
-3. Accepter l'enregistrement Mender, créer un artifact et le déployer
-   (`scripts/factory/deploy.sh`),
-4. Observer l'update A/B + rollback (`scripts/target/check.sh`, `rollback.sh`).
+Un premier essai de déploiement avait produit une erreur serveur qualifiée à
+tort de « bug plateforme ». En relisant la procédure, la cause était une
+**option manquante** (`--rpms`) : le déploiement factory fonctionne.
 
 ## Note : nom du dépôt
 
-Le dépôt GitHub s'appelle encore `redpesk-flotte-ota` (nom d'origine). Le
-périmètre documenté est désormais « une carte de référence » ; un éventuel
-renommage (ex. `redpesk-ota-node`) est laissé à discrétion, sans blocage.
+Le dépôt GitHub s'appelle encore `redpesk-flotte-ota` (nom d'origine) ; le
+périmètre documenté est « carte de référence unique ».
