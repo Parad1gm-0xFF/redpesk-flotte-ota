@@ -69,8 +69,26 @@ soumet son inventaire. La chaîne OTA est opérationnelle côté client.
 
 1. `jq` manquant sur l'image (l'inventaire `repos-info` échoue, non bloquant) :
    `dnf install jq` (a échoué en GPG check un jour donné, à revoir).
-2. Créer un artefact/release dans la factory et le déployer sur la board
-   (`rp-cli project-releases` / `make-mender-artifact`), puis observer l'update.
+2. **BUG PLATEFORME (bloquant)** : le déploiement échoue côté serveur factory.
+
+### Bug redpesk : POST /deployments (create_artifact)
+
+Reproductible via `rp-cli project-releases deploy <release> --boards <board> -a aarch64` :
+
+```
+Error: oops, something went wrong - {"errors":
+ "type object 'datetime.time' has no attribute 'sleep'",
+ "traceback": [ ... redpesk_service_ota/mender/artifact.py", line 252,
+                in create_artifact:  time.sleep(0.5) ]}
+```
+
+Cause : dans `redpesk_service_ota/mender/artifact.py`, `time` a été importé
+comme `datetime.time` (classe) au lieu du module `time`, donc `time.sleep()`
+n'existe pas. Bug **serveur** (factory), indépendant du device.
+
+Conséquence : l'artefact OTA ne peut pas être créé/déployé par la factory tant
+que ce point n'est pas corrigé côté redpesk. Le device, lui, est authentifié et
+prêt (il poll, prêt à installer un artefact).
 
 ## Note opérationnelle : horloge
 
