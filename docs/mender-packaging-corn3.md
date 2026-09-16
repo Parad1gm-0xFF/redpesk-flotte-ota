@@ -102,38 +102,64 @@ Notes :
   board (`dnf config-manager --setopt=<repoid>.gpgcheck=1 --save`) pour que
   dnf vérifie ces signatures.
 
-### La carte récupère le déploiement (vérifié)
+### OTA factory bout-en-bout : RÉUSSIE (vérifié)
 
-Après acceptation, le device **télécharge et traite** l'artefact (extrait du
-journal `mender-updated`) :
+Après deux ajustements, le déploiement s'installe complètement (journal du
+device) :
 
 ```
-Deployment with ID a7a13120-... started.
-Parse error: Failed to parse the manifest: ... filename
-  (secure-telemetry-node-0.0.0202609071326270g348adf9-11.secure.telemetry.node.1_fb68c347.rpcorn.aarch64.rpm)
-  is too long, maximum allowed filename length is 100
-Deployment ... finished with status: Failure
+Deployment ... started.
+Installing artifact...
+Payload is of RPM type
+Verifying packages...
+Preparing packages...
+secure-telemetry-node-0.1.0-1.secure.telemetry.node.1_fb68c347.rpcorn.aarch64
+RPM successfully installed!
+Deployment ... finished with status: Success
+$ rpm -q secure-telemetry-node
+secure-telemetry-node-0.1.0-1.secure.telemetry.node.1_fb68c347.rpcorn.aarch64
+$ mender-update show-artifact
+secure-telemetry-node-1-1.1_21aed459-...
 ```
 
-Donc la chaîne factory -> device **fonctionne** (l'artefact descend). L'échec
-vient d'une **limite Mender** : le nom du RPM dans le manifeste dépasse
-**100 caractères** (ici 105), à cause de la **version auto-générée très longue**
-par la factory (`setverrel`).
+Deux ajustements nécessaires :
 
-Pistes de correction (côté projet/version, pas la plateforme) :
-- activer le **« short release naming »** du projet (champ vu dans
-  `rp-cli projects get -v` ; non exposé dans `projects update` — à faire via
-  la WebUI) ;
-- ou désactiver la génération auto de version/release (`setverrel`) et fixer
-  un `Version`/`Release` courts dans le specfile ;
-- ou viser un paquet dont le nom d'archive reste court.
+1. **Nom de fichier < 100 caractères (limite Mender)**. La version
+   auto-générée par la factory (`setverrel`) produisait un nom de RPM de 105
+   caractères, rejeté au parsing du manifeste
+   (`maximum allowed filename length is 100`). Solution : **désactiver le
+   service `setverrel`** sur l'application, pour utiliser le `Version`/`Release`
+   courts du specfile (`0.1.0-1`) :
+   ```
+   rp-cli applications update secure-telemetry-node -p secure-telemetry-node-1 \
+       --disable-services setverrel
+   ```
+   puis rebuild + re-release. Nom obtenu : 81 caractères.
+   (Alternative côté projet : « short release naming » — champ visible dans
+   `rp-cli projects get -v` mais non exposé par `projects update` ; à faire via
+   la WebUI.)
 
-## Reste à faire pour un déploiement complet
+2. **Clé GPG de la factory importée sur la cible** (le module exige des RPM
+   signés) :
+   ```
+   rpm --import /etc/pki/rpm-gpg/RPM-GPG-KEY-community
+   ```
+   Sans elle : `Header V4 RSA/SHA256 Signature, key ID f7ea2b49: NOKEY`.
+   Cohérent avec la doc « Project releasing » (les paquets d'un projet releasé
+   sont signés par la factory).
 
-1. `jq` manquant sur l'image (l'inventaire `repos-info` échoue, non bloquant) :
-   `dnf install jq` (a échoué en GPG check un jour donné, à revoir).
-2. Attendre le poll du device (30 min) ou le forcer, puis vérifier l'update.
-3. Activer `gpgcheck` sur la board pour vérifier les signatures factory.
+3. **Délai de propagation de la release** : déployer juste après un
+   `projects release` peut échouer (`NameError: name 'urls' is not defined`
+   dans `download_packages`) ; réessayer ~1 à 2 min plus tard suffit.
+
+## Points restants (non bloquants)
+
+1. `jq` manquant sur l'image (l'inventaire `installed-packages`/`repos-info`
+   échoue, non bloquant). `dnf install jq` a échoué en GPG check une fois.
+2. Poll device : 30 min par défaut ; réduire `UpdatePollIntervalSeconds` ou
+   redémarrer `mender-updated` pour accélérer un test.
+3. A/B (mise à jour d'OS) : nécessite une image Mender (partitionnement A/B) ;
+   l'OTA démontrée ici est une **mise à jour d'application** (RPM).
 
 ## Analyse : changer de release OS ne débloque pas l'OTA
 
