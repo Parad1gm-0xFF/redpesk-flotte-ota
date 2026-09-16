@@ -32,27 +32,45 @@ Ce repo fournit (aarch64, corn 3.0 et 3.1) :
 - Le client **atteint le serveur** `https://community-mender.redpesk.bzh`
   (config préexistante dans `/etc/mender/mender.conf`)
 
-## Point en cours : « dev auth: unauthorized »
+## Point RÉSOLU : « dev auth: unauthorized » = device_type
 
-Malgré une board **préautorisée** côté factory (`rp-cli boards add rpi3b-01
---board-model rpi3b-flotte --mac-address <mac> --pre-authorize`), le device
-reçoit :
+Le mismatch venait du **`device_type`**. La factory attend la chaîne
+`<model_name>_<model_id>` et non le seul nom du modèle.
+
+Détail brut factory (`rp-cli boards get <id> --rawoutput`) :
+
+```json
+"model_name":  "rpi3b-flotte",
+"device_type": "rpi3b-flotte_91c8e506",   // <- la valeur attendue
+"mac_address": "b8:27:eb:dd:8a:3c",
+"server_status": "preauthorized"
+```
+
+Correction appliquée sur le device :
 
 ```
-Unauthorized error: Failed to authorize with the server.
-({"error":"dev auth: unauthorized", "request_id": ...})
+echo 'device_type=rpi3b-flotte_91c8e506' > /var/lib/mender/device_type
+echo 'device_type=rpi3b-flotte_91c8e506' > /etc/mender/device_type
+systemctl restart mender-authd mender-updated
 ```
 
-Pistes de mismatch d'identité Mender (à confirmer) :
-- **Attribut MAC** : le script d'identité redpesk envoie `mac_addr=<mac>`
-  (et `device_type=<type>`). La préautorisation factory (`--mac-address`) cible
-  peut-être un autre nom d'attribut (`mac`).
-- **device_type** : le modèle s'affiche `rpi3b-flotte_91c8e506` (name_id) alors
-  que le device envoie `rpi3b-flotte`. La chaîne attendue est à confirmer.
-- **MAC utilisée** : le script prend l'interface de plus bas ifindex (ici
-  `wlan0` : `b8:27:eb:dd:8a:3c`) ; l'Ethernet est `b8:27:eb:88:df:69`.
-- **Acceptation explicite** : `rp-cli boards update <id> --accept [--auth-ID]`
-  pourrait être nécessaire selon la config serveur.
+Résultat :
+
+```
+mender-authd: Successfully received new authorization data
+mender-updated: Inventory data submitted successfully
+mender-updated: No update available
+```
+
+→ **Le RPi3B+ est authentifié auprès du serveur Mender de la factory** et
+soumet son inventaire. La chaîne OTA est opérationnelle côté client.
+
+## Reste à faire pour un déploiement complet
+
+1. `jq` manquant sur l'image (l'inventaire `repos-info` échoue, non bloquant) :
+   `dnf install jq` (a échoué en GPG check un jour donné, à revoir).
+2. Créer un artefact/release dans la factory et le déployer sur la board
+   (`rp-cli project-releases` / `make-mender-artifact`), puis observer l'update.
 
 ## Note opérationnelle : horloge
 
