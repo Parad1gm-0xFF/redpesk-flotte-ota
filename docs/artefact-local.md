@@ -97,13 +97,76 @@ Réserve : nécessite des **identifiants** sur ce serveur Mender (à confirmer
 côté redpesk). C'est une alternative au déploiement factory (actuellement
 cassé).
 
-## Pour de vrais paquets RPM (redpesk-payload)
+## Pour de vrais paquets RPM (redpesk-payload) — VALIDÉ
 
-Le module `redpesk-payload` attend, dans l'artefact, un `update.tar` contenant
-les RPM, plus un fichier `metadata`. C'est le format produit par
-`make-mender-artifact -p rpm-os` (redpesk local builder). À reproduire pour un
-déploiement de paquets réel via Mender (hors bug factory).
+Le module `redpesk-payload` (type `rpm-os`) installe des RPM. Format attendu :
+
+- un fichier `metadata` : `VERSION=2` + `PAYLOAD_TYPE="rpm-os"`
+- le(s) RPM, signés (voir ci-dessous)
+
+Création de l'artefact :
+
+```
+mender-artifact write module-image -T redpesk-payload \
+  -t rpi3b-flotte_91c8e506 \
+  -o /out/stn-payload-1.0.mender -n stn-payload-1.0 \
+  -f /payload/metadata -f /payload/<paquet>.aarch64.rpm
+```
+
+Déploiement standalone observé (RPM `secure-telemetry-node` signé) :
+
+```
+Payload is of RPM type
+Verifying packages...
+Preparing packages...
+secure-telemetry-node-0.1.0-1.el9.aarch64
+RPM successfully installed!
+Installed and committed.
+$ rpm -q secure-telemetry-node
+secure-telemetry-node-0.1.0-1.el9.aarch64
+```
+
+### Deux barrières réelles rencontrées
+
+1. **Conflit de dépendances** : la carte avait `secure-telemetry-node` + son
+   `-redtest` (dépend de la version exacte). `rpm -U` du nouveau paquet casse
+   cette dépendance → retirer le paquet conflictuel avant (`dnf remove`).
+2. **Signature obligatoire** : le module exécute
+   `rpm --define='%_pkgverify_level all' -U --force`, donc le RPM **doit être
+   signé** (sinon « does not verify: no signature »). Procédure :
+   - générer une clé GPG, signer le RPM (`rpm --addsign`),
+   - importer la clé publique sur la cible (`rpm --import pub.asc`),
+   - puis déployer.
+
+Cela confirme que redpesk **impose des paquets signés** pour l'OTA (cohérent
+avec « GPG check enabled by default » des notes factory).
+
+Reproduire : `scripts/ota-local/build-rpm-artifact.sh <rpm> <device_type>`.
+
+## Déploiement managed (mender-cli) — serveur joignable, identifiants requis
+
+Le serveur Mender de la factory est **joignable** :
+
+```
+$ curl -sI https://community-mender.redpesk.bzh            -> HTTP 301
+$ curl -s -X POST .../api/management/v1/useradm/auth/login -> HTTP 401 (auth requise)
+```
+
+Upload d'artefact via `mender-cli` :
+
+```
+mender-cli login --server https://community-mender.redpesk.bzh --username <user>
+mender-cli artifacts upload ota-demo-1.0.mender
+```
+
+**Blocage** : nécessite des **identifiants** sur `community-mender.redpesk.bzh`
+(login interactif). Non disponibles. À demander à redpesk (le compte factory
+`community-app.redpesk.bzh` ne donne pas forcément accès à l'API Mender).
+
+Si obtenus, cette voie permettrait un déploiement **managed** de bout en bout
+sans l'endpoint factory cassé.
 
 ## Reproduire
 
-Voir `scripts/ota-local/build-artifact.sh` (création de l'artefact de démo).
+- `scripts/ota-local/build-artifact.sh` : artefact `single-file` (démo).
+- `scripts/ota-local/build-rpm-artifact.sh` : artefact `redpesk-payload` (RPM).
