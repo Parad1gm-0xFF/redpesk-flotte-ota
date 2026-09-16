@@ -32,3 +32,5 @@ secrets/
 *.raw
 vm-fleet/OVMF_VARS_*.fd
 vm-fleet/Redpesk-OS.img
+# Config locale (ne pas committer)
+config/.env
