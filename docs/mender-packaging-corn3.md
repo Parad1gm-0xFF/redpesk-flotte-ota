@@ -90,6 +90,40 @@ Conséquence : l'artefact OTA ne peut pas être créé/déployé par la factory 
 que ce point n'est pas corrigé côté redpesk. Le device, lui, est authentifié et
 prêt (il poll, prêt à installer un artefact).
 
+## Analyse : changer de release OS ne débloque pas l'OTA
+
+L'OTA est une **fonctionnalité de la factory**, pas de l'OS. Notes de release
+factory (`redpesk-factory/factory-releases`) :
+
+- **Armel 1.8.0 (fév. 2025)** : « OTA (Over The Air) support for deployments on
+  boards » (introduction de l'OTA).
+- **Armel 1.10.0 (nov. 2025)** : « Deployment: add possibility to deploy uniquely
+  few rpms » ; « **Enable GPG check by default in redpesk images** ».
+- **Armel 1.11.1 (juil. 2026)** : « Fix several bugs around OTA feature »
+  (version actuelle de la factory Community, cf. `rp-cli misc version` = 1.11.1).
+- **Armel 1.0.1 (août 2022)** : premières briques « mender/OTA tools and scripts »
+  (local builder).
+
+Conséquences :
+- Le bug `create_artifact` que nous rencontrons est **côté service factory**
+  (SaaS 1.11.1), donc **indépendant de l'OS du device**. Revenir à Batz 2.x ou
+  Arz n'aurait aucun effet sur ce bug.
+- Le **GPG check activé par défaut** (1.10.0) explique l'échec `dnf install jq`
+  (paquets third-party non signés par la clé attendue).
+- ROADMAP OS : Arz (RHEL8) → Batz (RHEL9, supporté jusqu'en 2029) → Corn (RHEL10).
+
+## Voie alternative : artefact local (make-mender-artifact)
+
+La doc `redpesk-factory/2_mender.html` décrit un chemin **sans l'endpoint cassé** :
+le **local builder** fournit `make-mender-artifact` et `upload-mender-artifact`
+pour créer/pousser un artefact directement. Réserve : ce flux est documenté
+autour de **Hosted Mender** (`eu.hosted.mender.io`), alors que notre device est
+inscrit sur `community-mender.redpesk.bzh`.
+
+Piste : utiliser l'outil **officiel Mender** `mender-artifact` (binaire Go) pour
+créer un artefact depuis nos RPM, puis le déployer via l'UI/API du serveur
+Mender de la factory. Voir `docs/artefact-local.md` (exploration).
+
 ## Note opérationnelle : horloge
 
 L'image minimale n'a **ni RTC ni NTP**. L'horloge est fausse au boot, ce qui
