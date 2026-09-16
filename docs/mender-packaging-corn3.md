@@ -102,6 +102,32 @@ Notes :
   board (`dnf config-manager --setopt=<repoid>.gpgcheck=1 --save`) pour que
   dnf vérifie ces signatures.
 
+### La carte récupère le déploiement (vérifié)
+
+Après acceptation, le device **télécharge et traite** l'artefact (extrait du
+journal `mender-updated`) :
+
+```
+Deployment with ID a7a13120-... started.
+Parse error: Failed to parse the manifest: ... filename
+  (secure-telemetry-node-0.0.0202609071326270g348adf9-11.secure.telemetry.node.1_fb68c347.rpcorn.aarch64.rpm)
+  is too long, maximum allowed filename length is 100
+Deployment ... finished with status: Failure
+```
+
+Donc la chaîne factory -> device **fonctionne** (l'artefact descend). L'échec
+vient d'une **limite Mender** : le nom du RPM dans le manifeste dépasse
+**100 caractères** (ici 105), à cause de la **version auto-générée très longue**
+par la factory (`setverrel`).
+
+Pistes de correction (côté projet/version, pas la plateforme) :
+- activer le **« short release naming »** du projet (champ vu dans
+  `rp-cli projects get -v` ; non exposé dans `projects update` — à faire via
+  la WebUI) ;
+- ou désactiver la génération auto de version/release (`setverrel`) et fixer
+  un `Version`/`Release` courts dans le specfile ;
+- ou viser un paquet dont le nom d'archive reste court.
+
 ## Reste à faire pour un déploiement complet
 
 1. `jq` manquant sur l'image (l'inventaire `repos-info` échoue, non bloquant) :
