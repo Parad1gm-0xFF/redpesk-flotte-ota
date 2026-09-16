@@ -93,7 +93,7 @@ docs/                     → Notes de conception, référence des commandes rp-
 ./scripts/target/provision.sh rpi3b-flotte
 ```
 
-Résultat réel (RPi3B+, WiFi 192.168.56.x) :
+Résultat réel (RPi3B+, WiFi 192.168.x.x) :
 - `redpesk-config` 1.5.1-5.community (config factory Community active)
 - `device_type=rpi3b-flotte` posé (`/etc/mender/device_type` et `/var/lib/mender/device_type`)
 - WiFi opérationnel (wpa_supplicant + networkd) : la carte est joignable par SSH sans câble
