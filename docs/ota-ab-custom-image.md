@@ -23,34 +23,53 @@ pas à changer le modèle A/B.
 Sources : docs.redpesk.bzh (recovery/1-recovery-architecture),
 github.com/redpesk-infra/rp-mkosi (repart.d/common).
 
-## Image custom RPi (factory, mkosi) : créée, build en attente
+## Image custom RPi (factory, mkosi) : BLOQUÉE par l'édition Community
 
-Créée via `rp-cli` (sans forker rp-mkosi, en ajoutant des paquets à la volée) :
+L'image a été créée correctement, mais le build est **annulé** par la factory
+Community (`canceled`, sans aucun log → annulation au niveau infra).
+
+Cause confirmée par la doc officielle « Community edition »
+(`getting_started/docs/community-edition.html`) :
+
+- **Feature limitation** : « Local builder : image build is not available ».
+- **Ressources partagées** : « internal factory resources are shared between
+  users based on waiting queues, meaning **restricted parallel builds and
+  hardware resources usage (CPU, RAM, …)** ».
+- Quotas : 10 projets, 100 apps, **3 images** max ; 10 Go.
+
+→ Les builds d'image ne sont **pas garantis** en Community (best-effort sur
+builder partagé) ; le nôtre a été annulé. Les images visibles sur le compte
+sont d'ailleurs toutes `iotbzh (external)` (pré-construites), aucune buildée
+par l'utilisateur.
+
+### Config créée (pour référence)
 
 ```
 rp-cli projects add -n custom-images --images \
     --mandatory-arch aarch64 --mandatory-distro redpesk-lts-corn-3.0-update
-
 rp-cli images add -n rpi-custom --arch aarch64 \
     -d redpesk-lts-corn-3.0-update -p custom-images \
     --build-type mkosi \
     --mkosi-url https://github.com/redpesk-infra/rp-mkosi.git \
-    --mkosi-branch corn-3.0-update \
-    --mkosi-file mkosi-rpi.conf \
+    --mkosi-branch corn-3.0-update --mkosi-file mkosi-rpi.conf \
     --mkosi-profiles smack,minimal,localrepo \
     --mkosi-pkgs mender-client,mender-connect,mender-redpesk,jq,chrony
-
-rp-cli images build rpi-custom --nonblocking   # build 55097
+rp-cli images build rpi-custom --nonblocking   # -> canceled
 ```
 
-Config d'image confirmée (`rp-cli images get rpi-custom -v`). Mais le build
-**reste en file** (statut `free`) après plusieurs minutes : vraisemblablement
-une limite de capacité du compte **Community** (comme les tests embarqués QEMU
-bloqués auparavant), ou une restriction des builds d'image sur compte gratuit.
+## Alternatives (hors factory Community)
 
-À retenter, ou à remonter au support (déjà contacté pour d'autres points).
+1. **Retenter** le build (file partagée) — non garanti.
+2. **Démontrer l'A/B redpesk (recovery) sur la carte existante** : l'image
+   pré-construite contient déjà RECOVERY/ROOT/DATA → tester le failover
+   (échecs de boot → restauration depuis `/recovery/backup.tar.gz`). C'est
+   l'A/B redpesk réel, sans image custom.
+3. **Image Mender A/B en local** (Yocto `meta-mender`, ou `mender-convert`),
+   indépendamment de redpesk — c'est le dual-rootfs Mender « classique ».
+4. **Demander à redpesk** de relever les limites Community, ou un accès Pro
+   (SaaS/on-prem) pour builder l'image.
 
-## Marche à suivre quand le build aboutira
+## Marche à suivre quand une image sera disponible
 
 1. Télécharger l'image (`rp-cli images get rpi-custom -v` → Download URL, ou
    `rp-cli images builds download`).
