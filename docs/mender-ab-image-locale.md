@@ -50,22 +50,33 @@ p3 rootfs B 3764 MiB ext4
 p4 data     128 MiB  ext4
 ```
 
-## Flashage et test A/B
+## Flashage et test A/B — VALIDÉ (20/09/2026)
 
-1. Flasher `...-mender.img` sur carte SD (`bmaptool`/`dd`, root requis).
-2. Booter le RPi.
-3. **Test A/B en standalone** (sans serveur) :
-   ```
-   scp raspios-lite-raspberrypi3_64-mender.mender root@<ip>:/root/
-   ssh root@<ip>
-   mender-update install /root/raspios-lite-raspberrypi3_64-mender.mender
-   mender-update commit        # ou rollback
-   reboot
-   mender-update show-artifact # -> release-1
-   ```
-   L'artefact s'écrit sur la partition racine **inactive** (B), puis le boot
-   bascule dessus : c'est le vrai **A/B** (à l'inverse de la mise à jour
-   applicative RPM).
+1. Image flashée sur carte SD (`dd`, layout A/B vérifié).
+2. Premier boot (rootfs A), accès préparé (`userconf.txt` + `ssh` sur la
+   partition boot), WiFi configuré (`nmcli`).
+3. **Test A/B standalone** :
+   - `mender-update install raspios-lite-raspberrypi3_64-mender.mender`
+     → écrit sur la partition **inactive (B)**, `Installed, but not committed`.
+   - `reboot` → le device **boote sur B** (`findmnt /` = `/dev/mmcblk0p3`).
+   - `commit` (après reboot : mounted root == env) → **commité**.
+4. **Résultat** : `ArtifactName = release-1`, état `ArtifactCommit_Leave`,
+   `upgrade_available=0` (env U-Boot), device stable sur B, joignable en WiFi
+   (192.168.56.99) et Ethernet.
+
+### Points appris
+
+- **Sémantique Mender** : `commit` se fait **après le reboot** sur la nouvelle
+  partition (sinon : « Mounted root does not match boot loader environment »).
+- **Failover** : sans commit, le `bootcount` U-Boot (`bootlimit=1`) a
+  automatiquement **rollbacké** vers A — l'A/B et le failover sont donc bien
+  opérationnels.
+- **Piège de l'A/B** : la nouvelle partition (B) est l'image **propre** (avant
+  personnalisations WiFi/user/SSH). Pour y accéder après bascule, il faut
+  personnaliser B avant reboot (ou baker les personnalisations dans l'image via
+  un overlay mender-convert).
+- Le client était en mode **managed** par défaut (Hosted Mender, jeton vide) ;
+  passage en **standalone** (ServerURL/TenantToken vides) pour le test local.
 
 ## Notes
 - `MENDER_DEVICE_TYPE="raspberrypi3_64"` (défini par la config).
