@@ -21,6 +21,7 @@ Kernel/BSP** (esprit candidature IoT.bzh, Lorient), aligné sur la plateforme
 | Packaging **RPM** | Specfile installant la configuration Mender et les redtests |
 | **Zephyr dans la factory** | App `zephyr-hello-world` buildée (build 55090) + preuve QEMU locale (`docs/zephyr-qemu-demo.md`) |
 | **Secure boot x86 + ARM** | x86 : UEFI Secure Boot OVMF (`docs/uefi-secureboot-qemu.md`) ; ARM : image Yocto `qemuarm64-secureboot` TF-A + OP-TEE + U-Boot + Mender A/B bootée en QEMU (`docs/yocto-qemuarm64-secureboot-mender.md`) |
+| **OTA A/B + serveur + flotte** | OTA A/B standalone (bascule/commit/rollback), serveur Mender self-hosted (auth, inventaire, déploiement managed) et flotte QEMU déployée par vagues (`docs/mender-server-selfhosted-et-flotte.md`) |
 | **Tests** | `redtests/` : tests TAP sur cible (état OTA, services, device type) |
 | **Sécurité** | Clés privées jamais commitées, identité board = MAC + clé (modèle Mender), device type strict |
 | **Reproductibilité** | Dossier `config/` centralisé, un fichier par cible ; scripts relançables |
@@ -79,6 +80,8 @@ scripts/
     setup-build.sh        → Prépare le build Yocto (sources, local.conf, contournements)
     build.sh              → Build image qemuarm64-secureboot + artefact Mender
     boot-qemu.sh          → Boote l'image Mender A/B en QEMU (console série telnet)
+  mender-server/
+    up.sh                 → Démarre le serveur Mender self-hosted + crée l'admin
   vm-fleet/               → OPTIONNEL : simulation de cartes QEMU (sans Mender)
     launch-vm.sh          → Démarre une VM redpesk
     provision-vm.sh       → Provisionnement d'une VM (partiel, sans mender-client)
@@ -206,6 +209,20 @@ services `mender-updated` et `mender-authd` actifs, `/data` sur vda4.
 
 Procédure + pièges : `docs/yocto-qemuarm64-secureboot-mender.md`. Relance :
 `scripts/yocto/setup-build.sh`, puis `build.sh` et `boot-qemu.sh`.
+
+---
+
+## 🔁 OTA A/B, serveur self-hosted et flotte (QEMU).
+
+- **OTA A/B** : `mender-update install` -> bascule de partition -> `commit`, ou
+  `rollback` (explicite et automatique si le boot n'est pas committé).
+- **Serveur Mender self-hosted** (Docker Compose, `mongo:7.0`) : auth device,
+  inventaire, upload d'artefact, déploiement managed, statut `success`.
+- **Flotte simulée** : 3 devices QEMU (MAC distinctes), groupe `flotte-qemu`,
+  déploiement **par vagues** (1 device puis le groupe).
+
+Détails, API et pièges : `docs/mender-server-selfhosted-et-flotte.md`. Démarrage
+du serveur : `scripts/mender-server/up.sh`.
 
 ---
 

@@ -23,6 +23,7 @@ plutôt que sur une « flotte » :
 | **OTA local (standalone)** | ✅ artefact `single-file` ET `redpesk-payload` (RPM signé) installés/committés (`docs/artefact-local.md`) |
 | Application Zephyr dans la factory | ✅ build 55090 + preuve QEMU (Zephyr 4.2.1) |
 | **Secure boot ARM + Mender A/B (Yocto)** | ✅ image `qemuarm64-secureboot` (TF-A + OP-TEE + U-Boot) bootée en QEMU, layout A/B Mender (`docs/yocto-qemuarm64-secureboot-mender.md`) |
+| **OTA A/B + serveur self-hosted + flotte** | ✅ bascule/commit/rollback A/B, serveur Mender Docker (auth, inventaire, déploiement managed), flotte QEMU par vagues (`docs/mender-server-selfhosted-et-flotte.md`) |
 
 ## Points restants (non bloquants)
 
