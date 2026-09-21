@@ -3,8 +3,7 @@
 # (TF-A + OP-TEE + U-Boot) + layout Mender A/B.
 # Usage : setup-build.sh [racine_yocto]   (défaut : /mnt/yocto)
 #
-# Idempotent : clone les dépôts manquants, écrit local.conf et bblayers.conf,
-# neutralise les intercepts qemu-user qui échouent sur Ubuntu 26.04.
+# Idempotent : clone les dépôts manquants, écrit local.conf et bblayers.conf.
 # Contexte complet : docs/yocto-qemuarm64-secureboot-mender.md
 set -euo pipefail
 
@@ -92,26 +91,12 @@ EOF
 fi
 
 # --- intercepts qemu-user ---
-# Sur Ubuntu 26.04 (hôte non validé par Yocto), les intercepts postinst qui
-# passent par qemu-user échouent (exit 1 silencieux). Ils ne font que
-# pré-générer des caches (fonts, gio, pixbuf, udev, gtk, mime, desktop),
-# régénérés au premier boot : on les neutralise pour laisser do_rootfs aboutir.
-# À corriger (qemuwrapper) pour une image de production.
-INTERCEPTS_DIR="$YOCTO_DIR/poky/scripts/postinst-intercepts"
-BACKUP_DIR="$YOCTO_DIR/intercept-backup"
-mkdir -p "$BACKUP_DIR"
-NEUTRALISES=""
-for f in update_font_cache update_gio_module_cache update_gtk_immodules_cache \
-         update_mandb update_pixbuf_cache update_udev_hwdb \
-         update_gtk_icon_cache update_desktop_database update_mime_database; do
-    [ -f "$INTERCEPTS_DIR/$f" ] || continue
-    cp -n "$INTERCEPTS_DIR/$f" "$BACKUP_DIR/" 2>/dev/null || true
-    printf '#!/bin/sh\n# Neutralisé : intercept qemu-user cassé sur cet hôte.\n# Les caches sont régénérés au premier boot si nécessaire.\nexit 0\n' > "$INTERCEPTS_DIR/$f"
-    chmod +x "$INTERCEPTS_DIR/$f"
-    NEUTRALISES="$NEUTRALISES $f"
-done
-echo "=== intercepts neutralisés ===$NEUTRALISES"
-echo "    (originaux sauvegardés dans $BACKUP_DIR)"
+# Rien à neutraliser : sur cette image (core-image-minimal + mender-full), le
+# seul intercept qui s'exécute est update_udev_hwdb, et il passe avec le script
+# d'origine. Les intercepts fontconfig / gio / gtk ne se déclenchent que si les
+# paquets correspondants sont installés. Si un build échoue malgré tout sur un
+# intercept, restaurer les scripts d'origine :
+#   git -C "$YOCTO_DIR/poky" checkout -- scripts/postinst-intercepts/
 
 echo
 echo "Prêt. Build : scripts/yocto/build.sh $YOCTO_DIR"

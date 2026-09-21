@@ -95,11 +95,13 @@ Artefacts produits dans `tmp/deploy/images/qemuarm64-secureboot/` :
 3. **`mender-systemd`** : requiert `INIT_MANAGER = "systemd"`.
 4. **`kernel-devicetree`** : QEMU fournit son DTB à U-Boot, le paquet manque ->
    `MACHINE_ESSENTIAL_EXTRA_RDEPENDS:remove = "kernel-devicetree"`.
-5. **Intercepts qemu-user** : sur Ubuntu 26.04, les intercepts postinst qui
-   passent par qemu-user échouent (exit 1 silencieux). Ils ne font que
-   pré-générer des caches (fonts, gio, pixbuf, udev, gtk, mime, desktop) ->
-   neutralisés, régénérés au premier boot. **À corriger (qemuwrapper) pour une
-   image de production.**
+5. **Intercepts qemu-user** : ce ne sont pas eux qui cassent. Sur cette image,
+   le seul intercept exécuté est `update_udev_hwdb`, et il passe avec le script
+   d'origine (`qemuwrapper` -> `qemu-aarch64 -r 5.15 -E LD_LIBRARY_PATH=... -L
+   <rootfs>`). Les intercepts `fontconfig` / `gio` / `gtk` ne se déclenchent que
+   si ces paquets sont installés (absents d'une `core-image-minimal`). Une
+   neutralisation avait été appliquée par erreur sur un jeu de paquets
+   antérieur, puis retirée : ne pas neutraliser.
 6. **`MENDER_BOOT_PART_SIZE_MB`** : défaut 16 Mo, insuffisant pour le noyau
    arm64 `Image` (~25 Mo) -> `Disk full` à la création de la partition boot.
    Passer à 64 Mo.
