@@ -20,6 +20,7 @@ Kernel/BSP** (esprit candidature IoT.bzh, Lorient), aligné sur la plateforme
 | **Gestion factory** | Scripts `rp-cli` : model board, boards, release, deploy |
 | Packaging **RPM** | Specfile installant la configuration Mender et les redtests |
 | **Zephyr dans la factory** | App `zephyr-hello-world` buildée (build 55090) + preuve QEMU locale (`docs/zephyr-qemu-demo.md`) |
+| **Secure boot x86 + ARM** | x86 : UEFI Secure Boot OVMF (`docs/uefi-secureboot-qemu.md`) ; ARM : image Yocto `qemuarm64-secureboot` TF-A + OP-TEE + U-Boot + Mender A/B bootée en QEMU (`docs/yocto-qemuarm64-secureboot-mender.md`) |
 | **Tests** | `redtests/` : tests TAP sur cible (état OTA, services, device type) |
 | **Sécurité** | Clés privées jamais commitées, identité board = MAC + clé (modèle Mender), device type strict |
 | **Reproductibilité** | Dossier `config/` centralisé, un fichier par cible ; scripts relançables |
@@ -74,6 +75,10 @@ scripts/
     status.sh             → État des boards / déploiements (rp-cli)
   zephyr/
     test-local.sh         → Relance de la preuve Zephyr sous QEMU
+  yocto/
+    setup-build.sh        → Prépare le build Yocto (sources, local.conf, contournements)
+    build.sh              → Build image qemuarm64-secureboot + artefact Mender
+    boot-qemu.sh          → Boote l'image Mender A/B en QEMU (console série telnet)
   vm-fleet/               → OPTIONNEL : simulation de cartes QEMU (sans Mender)
     launch-vm.sh          → Démarre une VM redpesk
     provision-vm.sh       → Provisionnement d'une VM (partiel, sans mender-client)
@@ -183,6 +188,24 @@ Hello World! qemu_x86_64/atom
 
 Procédure complète + correction de la commande QEMU de la doc redpesk :
 `docs/zephyr-qemu-demo.md`. Relance locale : `scripts/zephyr/test-local.sh`.
+
+---
+
+## 🔐 Secure boot ARM + Mender A/B sous Yocto (QEMU).
+
+Image Yocto `meta-arm` `qemuarm64-secureboot` avec la chaîne **TF-A + OP-TEE +
+U-Boot** (secure boot ARM) et un layout **Mender A/B** (4 partitions), buildée et
+bootée en QEMU sans matériel :
+
+```
+TF-A (BL1 -> BL2 -> BL31) -> OP-TEE 4.1 -> U-Boot 2024.01 -> GRUB -> Linux 6.6.151
+```
+
+État A/B vérifié dans le guest : `mender_boot_part=2`, `upgrade_available=0`,
+services `mender-updated` et `mender-authd` actifs, `/data` sur vda4.
+
+Procédure + pièges : `docs/yocto-qemuarm64-secureboot-mender.md`. Relance :
+`scripts/yocto/setup-build.sh`, puis `build.sh` et `boot-qemu.sh`.
 
 ---
 
